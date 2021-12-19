@@ -55,26 +55,6 @@ export default function Account({
 
   return (
     <div>
-      {minimized ? (
-        ""
-      ) : (
-        <span>
-          {address ? (
-            <Address address={address} ensProvider={mainnetProvider} blockExplorer={blockExplorer} />
-          ) : (
-            "Connecting..."
-          )}
-          <Balance address={address} provider={localProvider} price={price} />
-          <Wallet
-            address={address}
-            provider={localProvider}
-            signer={userSigner}
-            ensProvider={mainnetProvider}
-            price={price}
-            color={currentTheme === "light" ? "#1890ff" : "#2caad9"}
-          />
-        </span>
-      )}
       {web3Modal &&
         (web3Modal?.cachedProvider ? (
           <Button
