@@ -1,27 +1,40 @@
 import { Input, Button, Spin, Image } from "antd";
 import ABI from "../store/ABI.json";
+import NFTABI from "../store/NFTABI.json";
 import ethTokens from "../store/ethTokens.json";
 import { useState } from "react";
 import Web3 from "web3";
+import axios from "axios";
+import { useEffect } from "react";
 
-function Home({ provider }) {
+function Home({ provider, localAddress, setAccountData }) {
   const [wallet, setWallet] = useState();
   const [balance, setBalance] = useState();
   const [loading, setLoading] = useState(false);
+  const [NFTs, setNFTs] = useState();
+  let [count, setCount] = useState(1);
+
+  const apiKey = "XPGA3QNISI6X57VAB88NX4W2F4RVKQK7TP";
 
   const Web3Client = new Web3(new Web3.providers.HttpProvider(provider.connection.url));
 
-  async function getBalance(walletAddress) {
+  useEffect(
+    () => (NFTs && balance ? (setAccountData({ NFTs: NFTs, Balance: balance }), setLoading(false)) : null),
+    [balance, NFTs],
+  );
+
+  const getBalance = async walletAddress => {
     let temp = [];
+    setBalance();
+    setLoading(true);
     ethTokens.tokens.map(async ({ symbol, address, logoURI }) => {
-      try {
-        const contract = new Web3Client.eth.Contract(ABI, address);
-        const result = await contract.methods.balanceOf(walletAddress).call();
-        const format = Web3Client.utils.fromWei(result);
-        if (format > 0) temp.push({ symbol: symbol, logo: logoURI, balance: format, address });
-      } catch {
-        e => console.error(e);
+      const contract = new Web3Client.eth.Contract(ABI, address);
+      const result = await contract.methods.balanceOf(walletAddress).call();
+      const format = Web3Client.utils.fromWei(result);
+      if (format > 0) {
+        temp.push({ symbol: symbol, logo: logoURI, balance: format, address });
       }
+      setCount(count++);
     });
     Web3Client.eth.getBalance(walletAddress, (err, result) => {
       if (err) {
@@ -39,7 +52,51 @@ function Home({ provider }) {
       }
     });
     setBalance(temp);
-  }
+  };
+
+  const getERC721 = async walletAddress => {
+    setWallet();
+    await axios
+      .get(
+        `https://api.etherscan.io/api?module=account&action=tokennfttx&address=${walletAddress}&page=1&offset=10000&startblock=0&endblock=27025780&sort=asc&apikey=${apiKey}`,
+      )
+      .then(async ({ status, data }) => {
+        let toArr = [];
+        if (status === 200 && data.result.length > 0) {
+          await data.result.map(async ({ contractAddress, to, tokenID, tokenName, tokenSymbol }, id) => {
+            if (tokenSymbol != "ENS") {
+              const contract = new Web3Client.eth.Contract(NFTABI, contractAddress);
+              await contract.methods
+                .tokenURI(tokenID)
+                .call()
+                .then(async uri => {
+                  try {
+                    await axios.get(uri).then(({ data: { attributes, image } }) =>
+                      toArr.push({
+                        id,
+                        tokenID: tokenID,
+                        tokenName: tokenName,
+                        tokenSymbol: tokenSymbol,
+                        image,
+                        attributes: attributes,
+                      }),
+                    ),
+                      setNFTs(toArr);
+                    console.log(toArr);
+                  } catch {
+                    e => console.error(e);
+                  }
+                });
+            } else {
+              console.log(data);
+            }
+          });
+        } else {
+          console.log("No NFTs");
+        }
+      })
+      .catch(e => console.error(e));
+  };
 
   return (
     <div style={{ margin: 32 }}>
@@ -49,41 +106,21 @@ function Home({ provider }) {
           <div style={{ margin: 8 }}>
             <Button
               onClick={async () => {
-                setLoading(true);
                 await getBalance(wallet);
-                setTimeout(() => setLoading(false), 3000);
-                setWallet();
+                await getERC721(wallet);
+                setLoading(true);
               }}
             >
               Search Balance
             </Button>
           </div>
         ) : null}
-        {loading ? (
-          <div style={{ margin: 32 }}>
-            <Spin />
+        {loading ? <Spin style={{ margin: 16 }} /> : null}
+        {localAddress ? (
+          <div style={{ position: "fixed", bottom: 0, right: 0, left: 0 }}>
+            <h4>Your address is: {localAddress}</h4>
           </div>
         ) : null}
-        {balance
-          ? balance.map(({ logo, symbol, balance, address }) => (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "end",
-                  margin: "auto",
-                  width: "25%",
-                }}
-                key={address}
-              >
-                <span style={{ margin: 8, flexgrow: 1, textAlign: "center" }}>
-                  <Image style={{ margin: 8, borderRadius: 16 }} src={logo} alt={symbol} height={32} width={32} />
-                </span>
-                <span style={{ margin: 8, textAlign: "center", flexGrow: 1, alignSelf: "" }}>{symbol}</span>
-                <span style={{ margin: 8, textAlign: "center", flexGrow: 5 }}>{balance}</span>
-              </div>
-            ))
-          : null}
       </div>
     </div>
   );

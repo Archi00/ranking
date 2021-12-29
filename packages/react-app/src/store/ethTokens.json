@@ -1825,6 +1825,16 @@
             "pairs": []
         },
         {
+            "asset": "c60_t0x0ab87046fBb341D058F17CBC4c1133F25a20a52f",
+            "type": "ERC20",
+            "address": "0x0ab87046fBb341D058F17CBC4c1133F25a20a52f",
+            "name": "gOHM",
+            "symbol": "gOHM",
+            "decimals":18,
+            "logoURI": "https://github.com/OlympusDAO/olympus-frontend/blob/develop/src/assets/tokens/gohm.png?raw=true",
+            "pairs": []
+        },
+        {
             "asset": "c60_t0x6fC13EACE26590B80cCCAB1ba5d51890577D83B2",
             "type": "ERC20",
             "address": "0x6fC13EACE26590B80cCCAB1ba5d51890577D83B2",

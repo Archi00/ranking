@@ -29,8 +29,24 @@ import externalContracts from "./contracts/external_contracts";
 // contracts
 import deployedContracts from "./contracts/hardhat_contracts.json";
 import { Transactor, Web3ModalSetup } from "./helpers";
-import { Home, ExampleUI, Hints, Subgraph, Tokens } from "./views";
+import { Home, ExampleUI, Hints, Subgraph, NFTs, Balance } from "./views";
 import { useStaticJsonRPC } from "./hooks";
+//DB
+import { initializeApp } from "firebase/app";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAAE6J1z5oG7rnY18VKuJ36ERmy8mH_NuI",
+  authDomain: "ranking-26d1c.firebaseapp.com",
+  projectId: "ranking-26d1c",
+  storageBucket: "ranking-26d1c.appspot.com",
+  messagingSenderId: "495357706372",
+  appId: "1:495357706372:web:e5e47ec4726944f9e7c2d1",
+  measurementId: "G-LRT1TTL1CB",
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore();
 
 const { ethers } = require("ethers");
 /*
@@ -76,6 +92,7 @@ function App(props) {
   const [injectedProvider, setInjectedProvider] = useState();
   const [address, setAddress] = useState();
   const [selectedNetwork, setSelectedNetwork] = useState(networkOptions[0]);
+  const [accountData, setAccountData] = useState();
   const location = useLocation();
 
   /// 📡 What chain are your contracts deployed to?
@@ -251,20 +268,39 @@ function App(props) {
       />
       <Menu style={{ textAlign: "center", margin: 16 }} selectedKeys={[location.pathname]} mode="horizontal">
         <Menu.Item key="/">
-          <Link to="/">Check Balance</Link>
+          <Link to="/">Address</Link>
         </Menu.Item>
+        {accountData ? (
+          <Menu.Item key="/balance">
+            <Link to="/balance">Balance</Link>
+          </Menu.Item>
+        ) : null}
+        {accountData ? (
+          <Menu.Item key="/NFTs">
+            <Link to="/NFTs">NFTs</Link>
+          </Menu.Item>
+        ) : null}
       </Menu>
-
       <Switch>
         <Route exact path="/">
           {mainnetProvider ? (
-            <Home provider={mainnetProvider} />
+            <Home provider={mainnetProvider} localAddress={address} setAccountData={setAccountData} />
           ) : (
             <div style={{ textAlign: "center", margin: 64 }}>
               <Spin />
             </div>
           )}
         </Route>
+        {accountData ? (
+          <Route exact path="/balance">
+            <Balance accountData={accountData} />
+          </Route>
+        ) : null}
+        {accountData ? (
+          <Route exact path="/NFTs">
+            <NFTs accountData={accountData} />
+          </Route>
+        ) : null}
         <Route exact path="/debug">
           {/*
                 🎛 this scaffolding is full of commonly used components
