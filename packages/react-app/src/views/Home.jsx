@@ -6,21 +6,28 @@ import { useState } from "react";
 import Web3 from "web3";
 import axios from "axios";
 import { useEffect } from "react";
+import { collection, addDoc } from "firebase/firestore";
 
-function Home({ provider, localAddress, setAccountData }) {
+function Home({ provider, localAddress, setAccountData, db }) {
   const [wallet, setWallet] = useState();
   const [balance, setBalance] = useState();
   const [loading, setLoading] = useState(false);
   const [NFTs, setNFTs] = useState();
   let [count, setCount] = useState(1);
 
-  const apiKey = "XPGA3QNISI6X57VAB88NX4W2F4RVKQK7TP";
+  const apiKey = process.env.ETHERSCAN_API_KEY;
 
   const Web3Client = new Web3(new Web3.providers.HttpProvider(provider.connection.url));
 
   useEffect(
-    () => (NFTs && balance ? (setAccountData({ NFTs: NFTs, Balance: balance }), setLoading(false)) : null),
-    [balance, NFTs],
+    () =>
+      NFTs && balance
+        ? (setAccountData({ NFTs: NFTs, Balance: balance }),
+          setLoading(false),
+          writeDb(wallet, NFTs, balance),
+          setWallet())
+        : null,
+    [NFTs],
   );
 
   const getBalance = async walletAddress => {
@@ -36,7 +43,7 @@ function Home({ provider, localAddress, setAccountData }) {
       }
       setCount(count++);
     });
-    Web3Client.eth.getBalance(walletAddress, (err, result) => {
+    await Web3Client.eth.getBalance(walletAddress, (err, result) => {
       if (err) {
         console.error(err);
       } else {
@@ -55,7 +62,6 @@ function Home({ provider, localAddress, setAccountData }) {
   };
 
   const getERC721 = async walletAddress => {
-    setWallet();
     await axios
       .get(
         `https://api.etherscan.io/api?module=account&action=tokennfttx&address=${walletAddress}&page=1&offset=10000&startblock=0&endblock=27025780&sort=asc&apikey=${apiKey}`,
@@ -66,7 +72,7 @@ function Home({ provider, localAddress, setAccountData }) {
           await data.result.map(async ({ contractAddress, to, tokenID, tokenName, tokenSymbol }, id) => {
             if (tokenSymbol != "ENS") {
               const contract = new Web3Client.eth.Contract(NFTABI, contractAddress);
-              await contract.methods
+              contract.methods
                 .tokenURI(tokenID)
                 .call()
                 .then(async uri => {
@@ -82,7 +88,6 @@ function Home({ provider, localAddress, setAccountData }) {
                       }),
                     ),
                       setNFTs(toArr);
-                    console.log(toArr);
                   } catch {
                     e => console.error(e);
                   }
@@ -98,6 +103,19 @@ function Home({ provider, localAddress, setAccountData }) {
       .catch(e => console.error(e));
   };
 
+  const writeDb = async (wallet, NFTs, balance) => {
+    try {
+      const docRef = await addDoc(collection(db, "users"), {
+        address: wallet,
+        NFTs: NFTs,
+        balance: balance,
+      });
+      console.log("Document written with ID: ", docRef.id);
+    } catch (e) {
+      console.error("Error adding document: ", e);
+    }
+  };
+
   return (
     <div style={{ margin: 32 }}>
       <div style={{ margin: 32 }}>
@@ -111,7 +129,7 @@ function Home({ provider, localAddress, setAccountData }) {
                 setLoading(true);
               }}
             >
-              Search Balance
+              Add Account
             </Button>
           </div>
         ) : null}

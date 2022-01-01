@@ -29,13 +29,15 @@ import externalContracts from "./contracts/external_contracts";
 // contracts
 import deployedContracts from "./contracts/hardhat_contracts.json";
 import { Transactor, Web3ModalSetup } from "./helpers";
-import { Home, ExampleUI, Hints, Subgraph, NFTs, Balance } from "./views";
+import { Ranking, Home, ExampleUI, Hints, Subgraph, NFTs, Balance } from "./views";
 import { useStaticJsonRPC } from "./hooks";
 //DB
 import { initializeApp } from "firebase/app";
+import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
+import useTokenList from "./hooks/TokenList";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAAE6J1z5oG7rnY18VKuJ36ERmy8mH_NuI",
+  apiKey: process.env.GOOGLE_API_KEY,
   authDomain: "ranking-26d1c.firebaseapp.com",
   projectId: "ranking-26d1c",
   storageBucket: "ranking-26d1c.appspot.com",
@@ -93,6 +95,7 @@ function App(props) {
   const [address, setAddress] = useState();
   const [selectedNetwork, setSelectedNetwork] = useState(networkOptions[0]);
   const [accountData, setAccountData] = useState();
+  let [usersData, setUsersData] = useState([]);
   const location = useLocation();
 
   /// 📡 What chain are your contracts deployed to?
@@ -185,6 +188,8 @@ function App(props) {
   // keep track of a variable from the contract in the local React state:
   const purpose = useContractReader(readContracts, "YourContract", "purpose");
 
+  const tokenList = useTokenList;
+
   /*
   const addressFromENS = useResolveName(mainnetProvider, "austingriffith.eth");
   console.log("🏷 Resolved austingriffith.eth as:",addressFromENS)
@@ -257,6 +262,23 @@ function App(props) {
 
   const faucetAvailable = localProvider && localProvider.connection && targetNetwork.name.indexOf("local") !== -1;
 
+  const ranking = async () => {
+    const q = query(collection(db, "users"));
+    const querySnapshot = await getDocs(q);
+    const temp = [];
+    querySnapshot.forEach(doc => {
+      temp.push({ id: doc.id, data: doc.data() });
+    });
+    setUsersData(temp);
+  };
+
+  useEffect(async () => {
+    if (db) {
+      await ranking();
+      console.log(usersData);
+    }
+  }, [db]);
+
   return (
     <div className="App">
       <NetworkDisplay
@@ -267,8 +289,13 @@ function App(props) {
         logoutOfWeb3Modal={logoutOfWeb3Modal}
       />
       <Menu style={{ textAlign: "center", margin: 16 }} selectedKeys={[location.pathname]} mode="horizontal">
-        <Menu.Item key="/">
-          <Link to="/">Address</Link>
+        {usersData ? (
+          <Menu.Item key="/">
+            <Link to="/">Ranking</Link>
+          </Menu.Item>
+        ) : null}
+        <Menu.Item key="/add">
+          <Link to="/add">Add Account</Link>
         </Menu.Item>
         {accountData ? (
           <Menu.Item key="/balance">
@@ -283,8 +310,11 @@ function App(props) {
       </Menu>
       <Switch>
         <Route exact path="/">
+          {mainnetProvider && usersData ? <Ranking users={usersData} /> : <Spin />}
+        </Route>
+        <Route exact path="/add">
           {mainnetProvider ? (
-            <Home provider={mainnetProvider} localAddress={address} setAccountData={setAccountData} />
+            <Home provider={mainnetProvider} localAddress={address} setAccountData={setAccountData} db={db} />
           ) : (
             <div style={{ textAlign: "center", margin: 64 }}>
               <Spin />

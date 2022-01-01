@@ -1,7 +1,6 @@
 import { Image } from "antd";
 
 function Balance({ accountData: { Balance } }) {
-  console.log(Balance);
   return Balance.map(({ logo, symbol, balance, address }) => (
     <div
       style={{
